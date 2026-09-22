@@ -1,8 +1,9 @@
 # STATUS
 
 ## Current phase
-Phase 1 — Upstream Baseline (COMPLETE: 8-step + 40-step MPS smokes SUCCESS)
-Phase 2 — Architecture Investigation (tensor inventory + port plan done; exp-001 suite probes running)
+Phase 1 — Upstream Baseline (COMPLETE) + exp-001 quality characterization (COMPLETE)
+Phase 2 — Architecture Investigation (inventory + port plan done)
+Next: exp-002 conditioning-ablation design (no weight edits) → MLX rope/modulation units
 
 ## Completed work
 - Isolated venv via `uv` (Python 3.12.14, `.venv/`, `uv.lock` committed)
@@ -13,16 +14,16 @@ Phase 2 — Architecture Investigation (tensor inventory + port plan done; exp-0
 - Verified local `diffusers==0.40.0` lacks `QwenImage21*` — baseline needs git-main (PR #14804)
 
 ## Current experiment
-- exp-001 suite probes (artistic_01, comp_01, text_01 @ 8 steps) running sequentially in background. 40-step teapot is the known-good quality reference.
+- exp-001 COMPLETE: 4/4 probes prompt-adherent (teapot40, capybara, astronaut, neon text). No weight modifications made anywhere.
 
 ## Known failures
 - Initial `uv sync` failed: hatchling could not infer wheel package (no src layout). Fixed by adding `src/qwen_mlx/__init__.py` + `[tool.hatch.build.targets.wheel]`.
 - Global Python is 3.14.7; project pins 3.12.14 for torch wheel compatibility. Intentional divergence, recorded.
 
 ## Next action
-1. Await 40-step baseline → record metrics + compare vs 8-step.
-2. Phase 2: rotary/modulation code mapping for MLX port plan.
-3. Behavioral-modification experiment design (exp-001) per §3/§4 — NO weight changes until hypothesis recorded.
+1. Design exp-002 (conditioning ablations, no weight edits) — next autonomous step.
+2. Implement MLX rope/modulation unit tests vs torch (port plan step 1).
+3. NOT started: weight modification, MLX full port, quantization. No push pending user wake (local commits only).
 
 ## Blocked tasks
 None.
