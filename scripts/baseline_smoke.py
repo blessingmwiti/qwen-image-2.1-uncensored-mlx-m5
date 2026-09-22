@@ -22,6 +22,7 @@ def main() -> int:
     ap.add_argument("--prompt", default="A ceramic teapot on a wooden table, morning light")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", default="experiments/baseline")
+    ap.add_argument("--name", default=None)
     args = ap.parse_args()
 
     import torch
@@ -48,7 +49,8 @@ def main() -> int:
     ).images[0]
     t_gen = round(time.time() - t1, 1)
 
-    img_path = out / "outputs" / f"smoke_s{args.steps}_seed{args.seed}.png"
+    stem = args.name or f"smoke_s{args.steps}_seed{args.seed}"
+    img_path = out / "outputs" / f"{stem}.png"
     image.save(img_path)
     sha = hashlib.sha256(img_path.read_bytes()).hexdigest()[:16]
 
@@ -68,7 +70,7 @@ def main() -> int:
         "status": "success",
     }
     print(json.dumps(res, indent=2))
-    (out / f"smoke_s{args.steps}.json").write_text(json.dumps(res, indent=2))
+    (out / f"{stem}.json").write_text(json.dumps(res, indent=2))
     return 0
 
 
