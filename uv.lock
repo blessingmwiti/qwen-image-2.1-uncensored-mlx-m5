@@ -3,6 +3,24 @@ revision = 3
 requires-python = "==3.12.*"
 
 [[package]]
+name = "accelerate"
+version = "1.15.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "psutil" },
+    { name = "pyyaml" },
+    { name = "safetensors" },
+    { name = "torch" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/b5/1d3ed029ac71d3f2961346829a268da923698e9fd63f218f78841f216bfd/accelerate-1.15.0.tar.gz", hash = "sha256:5654f8c5eaa0d4fa68b33e287a97765da6849bf6d51dcac874e73fbbddfb6134", size = 422615, upload-time = "2026-09-09T13:04:49.078Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/4c/34f0450479d01195027260da68d8a3880683f1640c3ca5adf64acb3185f1/accelerate-1.15.0-py3-none-any.whl", hash = "sha256:97eacca0b73e45cb867dbf8c5d5d4dc32219544300e0c8992c7334dc2ef33cec", size = 394295, upload-time = "2026-09-09T13:04:47.331Z" },
+]
+
+[[package]]
 name = "annotated-doc"
 version = "0.0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -163,11 +181,10 @@ nvtx = [
 
 [[package]]
 name = "diffusers"
-version = "0.40.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.41.0.dev0"
+source = { git = "https://github.com/huggingface/diffusers?rev=8b3c707ebd3ec4881f4190cf42931da07eaf3b65#8b3c707ebd3ec4881f4190cf42931da07eaf3b65" }
 dependencies = [
     { name = "filelock" },
-    { name = "httpx" },
     { name = "huggingface-hub" },
     { name = "importlib-metadata" },
     { name = "numpy" },
@@ -175,10 +192,6 @@ dependencies = [
     { name = "regex" },
     { name = "requests" },
     { name = "safetensors" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/59/32/b9c6a198812e2a7d2c2828a850dba384306f9af285eac23e35e89d5b008a/diffusers-0.40.0.tar.gz", hash = "sha256:49f112ce52ff6d332ab68afec01f79a53e6489b42cb69104444c98b4a2f64af8", size = 4886420, upload-time = "2026-08-20T14:30:40.923Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/db/df/ffb593ebed2a068d2d6be44261283f39a6b809c0fcdfdcafbd448cbeec77/diffusers-0.40.0-py3-none-any.whl", hash = "sha256:5b5da7c3ddb62152fa4afc577f02e050af688c797375c34fb2d01006da3f3541", size = 5911654, upload-time = "2026-08-20T14:30:38.422Z" },
 ]
 
 [[package]]
@@ -669,6 +682,7 @@ name = "qwen-2-1-uncensored-mlx-m5"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "accelerate" },
     { name = "diffusers" },
     { name = "huggingface-hub" },
     { name = "mlx" },
@@ -689,7 +703,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "diffusers", specifier = ">=0.35" },
+    { name = "accelerate", specifier = ">=1.0" },
+    { name = "diffusers", git = "https://github.com/huggingface/diffusers?rev=8b3c707ebd3ec4881f4190cf42931da07eaf3b65" },
     { name = "huggingface-hub", specifier = ">=0.34" },
     { name = "mlx", specifier = "==0.32.0" },
     { name = "numpy", specifier = ">=2" },
@@ -699,7 +714,7 @@ requires-dist = [
     { name = "torch", specifier = ">=2.7" },
     { name = "torchvision", specifier = ">=0.22" },
     { name = "tqdm", specifier = ">=4.66" },
-    { name = "transformers", specifier = ">=4.55" },
+    { name = "transformers", specifier = ">=5.17" },
 ]
 
 [package.metadata.requires-dev]

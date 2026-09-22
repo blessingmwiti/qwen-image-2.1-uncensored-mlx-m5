@@ -8,8 +8,9 @@ dependencies = [
     "mlx==0.32.0",
     "torch>=2.7",
     "torchvision>=0.22",
-    "transformers>=4.55",
-    "diffusers>=0.35",
+    "transformers>=5.17",
+    "diffusers @ git+https://github.com/huggingface/diffusers@8b3c707ebd3ec4881f4190cf42931da07eaf3b65",
+    "accelerate>=1.0",
     "safetensors>=0.6",
     "huggingface_hub>=0.34",
     "Pillow>=11",
@@ -28,6 +29,9 @@ testpaths = ["tests"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/qwen_mlx"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [build-system]
 requires = ["hatchling"]
