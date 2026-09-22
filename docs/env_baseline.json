@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-09-22T22:33:11+0300",
+  "hardware": {
+    "model": "Mac17,2",
+    "chip": "Apple M5",
+    "memory_gb": 17.18,
+    "arch": "arm64"
+  },
+  "os": {
+    "system": "Darwin",
+    "release": "27.0.0",
+    "mac_version": "27.0"
+  },
+  "python": {
+    "version": "3.12.14",
+    "executable": "/Users/mwiti/dev/qwen-2.1-uncensored-mlx-m5/.venv/bin/python"
+  },
+  "tools": {
+    "uv": "uv 0.12.17 (Homebrew 2026-09-18 aarch64-apple-darwin)",
+    "git": "git version 2.54.0 (Apple Git-157)",
+    "git_lfs": "git-lfs/3.8.0 (GitHub; darwin arm64; go 1.27.1)"
+  },
+  "packages": {
+    "mlx": "0.32.0",
+    "mlx-metal": "0.32.0",
+    "torch": "2.14.0",
+    "torchvision": "0.29.0",
+    "transformers": "5.17.0",
+    "diffusers": "0.40.0",
+    "safetensors": "0.8.0",
+    "huggingface_hub": "1.32.0",
+    "Pillow": "12.3.0",
+    "numpy": "2.5.3",
+    "psutil": "7.2.2",
+    "tqdm": "4.70.1",
+    "pytest": "9.1.1"
+  },
+  "accelerators": {
+    "mlx_metal": true,
+    "mlx_smoke": 14.0,
+    "mlx_seconds": 0.2024,
+    "torch_version": "2.14.0",
+    "torch_mps_available": true,
+    "torch_cuda_available": false
+  },
+  "status": "success",
+  "memory": {
+    "total_gb": 17.18,
+    "available_gb": 4.93,
+    "percent": 71.3
+  }
+}

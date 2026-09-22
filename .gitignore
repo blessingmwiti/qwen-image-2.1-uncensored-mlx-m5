@@ -1,0 +1,43 @@
+# Python venv
+.venv/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# uv
+.uv/
+uv.lock.bak
+
+# Model weights - NEVER commit per AGENTS.md
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+models/
+checkpoints/
+
+# Generated images - NEVER commit per AGENTS.md
+*.png
+*.jpg
+*.jpeg
+*.webp
+experiments/*/outputs/
+experiments/*/logs/
+!experiments/*/README.md
+!experiments/*/config.json
+!experiments/*/results.json
+
+# Secrets
+.env
+*.pem
+*.key
+
+# macOS
+.DS_Store
+
+# Caches
+.cache/
+.huggingface/
