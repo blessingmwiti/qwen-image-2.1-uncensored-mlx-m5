@@ -1,6 +1,6 @@
-# Architecture — Qwen Image 2.1 (configs verified from HF rev 790c9263; weights NOT downloaded)
+# Architecture — Qwen Image 2.1 (configs + tensor shapes verified; weights downloaded unmodified)
 
-Source: HF `Qwen/Qwen-Image-2.1@790c9263` config JSONs (fetched 2026-09-22, weights excluded) + `QwenLM/Qwen-Image-2.1` README + `diffusers#14804`.
+Source: HF `Qwen/Qwen-Image-2.1@790c9263` config JSONs + safetensors headers + `QwenLM/Qwen-Image-2.1` README + `diffusers#14804`.
 
 ```
 Qwen3-VL 8B text encoder (unified text + condition images)
@@ -20,15 +20,18 @@ image (RGB/RGBA)
 - **Resolutions**: native 2K (2048² default; 16:9 2752×1536 etc.). Project primary target 1024² (downscaled, TBD validation).
 - **Editing**: up to 10 ref images, circles/masks/annotations, RGBA transparent gen via `This is an RGBA image with transparency…` prompt format.
 
-## Data flow (to verify in Phase 2)
+## Tensor inventory (verified from safetensors headers, 2026-09-23; weights NOT modified)
+- **Transformer** (297 tensors, all BF16): 32 blocks × 9 params. Per block: `attn.norm_q/k [128]`, `attn.to_q/k/v/out [4096,4096]`, `img_mlp.gate/proj [12288,4096]`, `img_mlp.out [4096,12288]`. Single-stream (no per-block text MLP). Non-block: `img_in [4096,64]`, `txt_in.in/out [4096,4096]` + `text_norm [4096]`, `time_text_embed.timestep_embedder.linear_1 [4096,256]` / `linear_2 [4096,4096]`, `modulation.1 [16384,4096]`, `norm_out.linear [4096,4096]`, `proj_out [64,4096]`.
+- **Text encoder** (Qwen3-VL): LM 36 layers × 11 params (`input_layernorm/post_attention_layernorm [4096]`, `mlp.gate/up [12288,4096]`, `mlp.down [4096,12288]`, `self_attn.q/o [4096,4096]`, `k/v [1024,4096]` = GQA 32Q:8KV × d128, `q/k_norm [128]`). Vision 27 layers (`attn.qkv [3456,1152]`, `proj [1152,1152]`, `mlp.fc1 [4304,1152]` / `fc2 [1152,4304]`). All BF16.
+- **VAE** (238 tensors, all F32 — note: fp32 even in BF16 checkpoint): `decoder.conv_in [1152,64,3,3]`, `conv_out [4,144,3,3]`, mid attentions + resnets at 1152ch. Keep fp32 in MLX port unless verified otherwise.
+## Data flow (baseline verified end-to-end 2026-09-23: 8-step MPS smoke produced prompt-adherent 1024 RGBA)
 1. Tokenize prompt with image markers → processor (left pad) → Qwen3-VL → pre-norm hidden → prompt_embeds.
 2. VAE-encode condition images (RGBA 4ch) for latents; vision branch gets RGB-composited copy.
 3. DiT denoises target latents with block-causal attn + prefix KV cache (step1 prefill, steps 2..N cached decode).
 4. VAE-decode latents → PIL RGB/RGBA.
 
-## Open questions (Phase 2)
-- Parameter names/shapes, rotary embedding application, timestep modulation details (need weight inspection).
-- `model_index.json` wiring verified: QwenImage21Pipeline, _diffusers_version 0.37.0.dev0, processor Qwen3VLProcessor, scheduler FlowMatchEulerDiscrete, text_encoder Qwen3VLForConditionalGeneration, transformer QwenImage21Transformer2DModel, vae AutoencoderKLQwenImage21.
-- 1024² vs 2048² quality/memory tradeoff on M5.
+## Open questions (remaining)
+- Rotary embedding application details + timestep modulation wiring (need code-level port planning).
+- 1024² vs 2048² quality/memory tradeoff on M5 (40-step baseline pending).
 
-Status: CONFIGS VERIFIED from JSON; WEIGHTS NOT DOWNLOADED, no local generation yet.
+Status: CONFIGS + TENSOR SHAPES VERIFIED from headers; WEIGHTS DOWNLOADED (33.12GB, hashes in experiments/baseline/results.json, unmodified); 8-STEP MPS BASELINE SUCCESS.

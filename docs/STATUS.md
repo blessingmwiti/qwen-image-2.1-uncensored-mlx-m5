@@ -1,7 +1,8 @@
 # STATUS
 
 ## Current phase
-Phase 1 — Upstream Baseline (research done, no weights downloaded yet)
+Phase 1 — Upstream Baseline (weights downloaded + 8-step MPS smoke SUCCESS; 40-step running)
+Phase 2 — Architecture Investigation (tensor inventory done from headers)
 
 ## Completed work
 - Isolated venv via `uv` (Python 3.12.14, `.venv/`, `uv.lock` committed)
@@ -12,21 +13,21 @@ Phase 1 — Upstream Baseline (research done, no weights downloaded yet)
 - Verified local `diffusers==0.40.0` lacks `QwenImage21*` — baseline needs git-main (PR #14804)
 
 ## Current experiment
-None. Upstream identified; baseline download + smoke not started.
+- 40-step full baseline (1024, seed 42, MPS+offload) running in background. 8-step smoke is the known-good reference.
 
 ## Known failures
 - Initial `uv sync` failed: hatchling could not infer wheel package (no src layout). Fixed by adding `src/qwen_mlx/__init__.py` + `[tool.hatch.build.targets.wheel]`.
 - Global Python is 3.14.7; project pins 3.12.14 for torch wheel compatibility. Intentional divergence, recorded.
 
 ## Next action
-1. Pin diffusers git revision containing PR #14804 merge; record in docs (no upgrade without experiment per §16).
-2. Download baseline weights with hashes (expect ~30GB+ total: 7B DiT + 8B text encoder + VAE) — confirm disk space first.
-3. Minimal MPS smoke: 1024x1024, 40 steps (or fewer for smoke), seed 42, `enable_model_cpu_offload()`, record time/mem/checksum.
-4. Create `tests/prompts/` eval suite skeleton.
+1. Await 40-step baseline → record metrics + compare vs 8-step.
+2. Phase 2: rotary/modulation code mapping for MLX port plan.
+3. Behavioral-modification experiment design (exp-001) per §3/§4 — NO weight changes until hypothesis recorded.
 
 ## Blocked tasks
 None.
 
 ## Benchmark summary
-- Env smoke: `mlx_metal=true`, `mlx_smoke=14.0`, `torch_mps=true`, mem 17.18GB total / 4.93GB avail at baseline run.
-- Upstream H100 reference: 56.5 GiB peak BF16 at 2048/20steps/bs1 → 16GB M5 requires 1024 + offload + quant. No local generation yet.
+- Env smoke: `mlx_metal=true`, `torch_mps=true`, 17.18GB total.
+- Baseline 8-step MPS 1024: load 1.0s, gen 752.6s, 94.08s/step, output 1024 RGBA sha `d128b8160676da8c`. RSS field is POST-RUN ONLY (peak NOT MEASURED — limitation).
+- Weights: 33.12GB (TE 17.53 + DiT 14.23 + VAE 1.35), hashes in `experiments/baseline/results.json`.
