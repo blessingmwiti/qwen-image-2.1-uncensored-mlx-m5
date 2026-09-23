@@ -1,0 +1,1 @@
+{"exp": "exp-002", "type": "inference-ablation", "model": "Qwen/Qwen-Image-2.1", "revision": "790c92633540aa0cb11d9abf19eb46d861714758", "base": {"prompt": "A capybara wearing a wizard hat, reading a book by candlelight, oil painting", "seed": 42, "steps": 8, "resolution": "1024x1024", "device": "mps"}, "arms": ["uncond", "half", "empty"], "weight_modification": false}
