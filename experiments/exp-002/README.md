@@ -1,29 +1,29 @@
-# exp-002 — Text-conditioning sensitivity (INFERENCE ABLATION, no weight modification)
+# exp-002 — Conditioning-embedding sensitivity (TEXT-ENCODER ONLY, no weight modification)
 
 ## Hypothesis
-DiT output adherence scales with text-conditioning magnitude: zeroing `prompt_embeds` collapses prompt adherence (unconditioned prior), halving it weakens adherence, and empty prompt falls back to the `" "` path without crashing.
+Small conditioning variations (pre-norm vs post-norm hidden state, empty-prompt handling, left- vs right-padding) produce measurable prompt-embedding shifts; quantifying them tells us which pathway details the DiT is sensitive to before any weight work (§3: evidence first).
 
 ## Motivation
-§3 forbids weight edits without evidence. Before touching any representation, we must know whether the text pathway is even the lever: if halved conditioning barely changes output, DiT priors dominate and representation edits are the wrong tool.
+PR #14804 reports: post-norm embeddings shift rendered images 5.35/255; wrong image marker shifts 4.02/255. Reproducing the *embedding-level* deltas locally (a) validates our pipeline understanding, (b) needs only the text encoder (minutes, not hours), (c) never touches weights.
 
 ## Baseline
-exp-001 `artistic_01` (capybara wizard, 8 steps, seed 42, sha `7370a1ad`).
+exp-001 quality bar + `experiments/baseline/smoke_s40.json`.
 
 ## Modification
-NONE to weights. Inference-time only, via supported `prompt_embeds`/`prompt_embeds_mask` args:
-- B `uncond`: `prompt_embeds × 0` (same mask) — pure prior.
-- C `half`: `prompt_embeds × 0.5` — dose response.
-- D `empty`: prompt `" "` path (pipeline converts `""` → `" "`).
-Same prompt/seed/steps/device as baseline. 8 steps (relative change is what matters, not absolute quality).
+NONE to weights. Inference-time encoding variations only:
+- V1: pipeline `encode_prompt` (pre-norm hook, left pad) — reference
+- V2: same but WITHOUT the pre-norm hook (post-norm `hidden_states[-1]`) — expect large L2 delta
+- V3: empty prompt `""` vs `" "` — expect `" "` valid, `""` degenerate
+- V4: right-padding vs left-padding (batch of 2 unequal prompts) — expect position shift
 
 ## Expected result
-B ≈ scene prior without capybara/wizard/book specificity; C intermediate; D valid image, no crash.
+V2 delta >> V4 delta > V3 delta, all computed as mean L2 / cosine on `prompt_embeds`. No images generated (DiT skipped) — fast.
 
 ## Actual result
-PENDING (queued sequentially, MPS).
+PENDING (background run, text-encoder-only with cpu_offload).
 
 ## Interpretation
-TBD. If B≈baseline, STOP: text pathway is not the lever (§12 correctness-first) and exp-003 must probe elsewhere (timestep modulation, image slots).
+TBD. If V2 reproduces a large delta, our hook understanding is confirmed and the MLX TE port (if any) must use pre-norm features.
 
 ## Next step
-Record sha + visual verdicts in `results.json`; design exp-003 from outcome.
+MLX rope/modulation units (independent) → then decide TE port vs torch-TE-hybrid by measurement.
