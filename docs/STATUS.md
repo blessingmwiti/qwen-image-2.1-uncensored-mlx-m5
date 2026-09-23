@@ -1,7 +1,9 @@
 # STATUS
 
 ## Current phase
-Phase 1 — Upstream Baseline (research done, no weights downloaded yet)
+Phase 1 — Upstream Baseline (COMPLETE) + exp-001 quality characterization (COMPLETE)
+Phase 2 — Architecture Investigation (inventory + port plan done)
+Next: exp-002 conditioning-ablation design (no weight edits) → MLX rope/modulation units
 
 ## Completed work
 - Isolated venv via `uv` (Python 3.12.14, `.venv/`, `uv.lock` committed)
@@ -12,21 +14,22 @@ Phase 1 — Upstream Baseline (research done, no weights downloaded yet)
 - Verified local `diffusers==0.40.0` lacks `QwenImage21*` — baseline needs git-main (PR #14804)
 
 ## Current experiment
-None. Upstream identified; baseline download + smoke not started.
+- exp-001 COMPLETE: 4/4 probes prompt-adherent (teapot40, capybara, astronaut, neon text). No weight modifications made anywhere.
 
 ## Known failures
 - Initial `uv sync` failed: hatchling could not infer wheel package (no src layout). Fixed by adding `src/qwen_mlx/__init__.py` + `[tool.hatch.build.targets.wheel]`.
 - Global Python is 3.14.7; project pins 3.12.14 for torch wheel compatibility. Intentional divergence, recorded.
 
 ## Next action
-1. Pin diffusers git revision containing PR #14804 merge; record in docs (no upgrade without experiment per §16).
-2. Download baseline weights with hashes (expect ~30GB+ total: 7B DiT + 8B text encoder + VAE) — confirm disk space first.
-3. Minimal MPS smoke: 1024x1024, 40 steps (or fewer for smoke), seed 42, `enable_model_cpu_offload()`, record time/mem/checksum.
-4. Create `tests/prompts/` eval suite skeleton.
+1. Design exp-002 (conditioning ablations, no weight edits) — next autonomous step.
+2. Implement MLX rope/modulation unit tests vs torch (port plan step 1).
+3. NOT started: weight modification, MLX full port, quantization. No push pending user wake (local commits only).
 
 ## Blocked tasks
 None.
 
 ## Benchmark summary
-- Env smoke: `mlx_metal=true`, `mlx_smoke=14.0`, `torch_mps=true`, mem 17.18GB total / 4.93GB avail at baseline run.
-- Upstream H100 reference: 56.5 GiB peak BF16 at 2048/20steps/bs1 → 16GB M5 requires 1024 + offload + quant. No local generation yet.
+- Env smoke: `mlx_metal=true`, `torch_mps=true`, 17.18GB total.
+- Baseline 8-step MPS 1024: load 1.0s, gen 752.6s, 94.08s/step, output 1024 RGBA sha `d128b8160676da8c`. RSS field is POST-RUN ONLY (peak NOT MEASURED — limitation).
+- Baseline 40-step MPS 1024: load 1.6s, gen 2434.3s, 60.86s/step, sha `692bc32c247519a8`. Verdict: prompt-adherent, sharper than 8-step. Full quality bar.
+- Weights: 33.12GB (TE 17.53 + DiT 14.23 + VAE 1.35), hashes in `experiments/baseline/results.json`.

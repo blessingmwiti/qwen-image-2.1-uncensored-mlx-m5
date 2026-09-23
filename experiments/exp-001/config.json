@@ -1,0 +1,1 @@
+{"exp": "exp-001", "type": "observational", "model": "Qwen/Qwen-Image-2.1", "revision": "790c92633540aa0cb11d9abf19eb46d861714758", "eval_suite": "tests/prompts/suite.json v1", "resolution": "1024x1024", "num_inference_steps": 40, "seeds": [42], "device": "mps", "weight_modification": false}

@@ -1,0 +1,15 @@
+{
+  "model": "Qwen/Qwen-Image-2.1",
+  "revision": "790c92633540aa0cb11d9abf19eb46d861714758",
+  "resolution": "1024x1024",
+  "steps": 40,
+  "seed": 42,
+  "device": "mps",
+  "load_seconds": 1.6,
+  "generation_seconds": 2434.3,
+  "seconds_per_step": 60.86,
+  "rss_gb": 0.16,
+  "output": "experiments/baseline/outputs/smoke_s40_seed42.png",
+  "sha_prefix": "692bc32c247519a8",
+  "status": "success"
+}
