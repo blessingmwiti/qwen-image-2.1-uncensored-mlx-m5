@@ -1,9 +1,12 @@
 # STATUS
 
 ## Current phase
-Phase 1 — Upstream Baseline (COMPLETE) + exp-001 quality characterization (COMPLETE) + exp-002 embedding sensitivity (COMPLETE)
-Phase 2 — Architecture Investigation (inventory + port plan + 7/7 MLX math units done)
-Next: single-DiT-block equivalence (paused per user — "continue later")
+Phase 1–2 COMPLETE. MLX DiT port + Q8/Q4 hybrid e2e VERIFIED. Behavioral modification EXPLICITLY DEFERRED (see FINAL_REPORT). Paused — awaiting user.
+
+## Completed work (appended)
+- Hybrid e2e: MLX-Q8 (`dbccf107`) and MLX-Q4 (`4aadc2c`) teapots, same prompt/seed/steps as smoke_s8 — both meet bar.
+- Two-phase decode (latents.pt + fresh process) works around post-run VAE OOM.
+- Regression tests (6, fast) + README + LICENSE info + benchmarks + FINAL_REPORT.
 
 ## Completed work
 - Isolated venv via `uv` (Python 3.12.14, `.venv/`, `uv.lock` committed)

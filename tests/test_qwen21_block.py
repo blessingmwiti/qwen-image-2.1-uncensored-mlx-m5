@@ -41,7 +41,7 @@ def test_block_dense_no_rope():
         ref = tblock(h, modulation, rotary_emb=None, attention_mask=None)
 
     mw = {k: mx.array(v.numpy()) for k, v in w.items()}
-    mblock = DiTBlock(mw)
+    mblock = DiTBlock.from_dict(mw)
     got = mblock(mx.array(h.numpy()), mx.array(modulation.numpy()))
     mx.eval(got)
     g = torch.from_numpy(np.array(got, dtype=np.float32))

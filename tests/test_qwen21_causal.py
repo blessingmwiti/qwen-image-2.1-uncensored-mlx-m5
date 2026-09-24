@@ -53,7 +53,7 @@ def test_block_causal_mask():
     with torch.no_grad():
         ref = tb(h, modulation, rotary_emb=None, attention_mask=None, target_token_mask=tmask)
 
-    mb = DiTBlock({k: mx.array(v.numpy()) for k, v in w.items()})
+    mb = DiTBlock.from_dict({k: mx.array(v.numpy()) for k, v in w.items()})
     got = mb(
         mx.array(h.numpy()), mx.array(modulation.numpy()),
         rotary_freqs=None, segments=None, target_token_mask=mx.array(np.array(MASK11)),

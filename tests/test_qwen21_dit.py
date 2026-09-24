@@ -110,7 +110,7 @@ def test_full_dit_prefill_streaming():
         tb.load_state_dict(wb, strict=True)
         with torch.no_grad():
             t_out = tb(t_h, modulation, rotary_emb=r_freqs, attention_mask=None, segments=SEGS)
-        mb = DiTBlock({s: mx.array(wb[s].numpy()) for s in BLOCK_SUFFIXES})
+        mb = DiTBlock.from_dict({s: mx.array(wb[s].numpy()) for s in BLOCK_SUFFIXES})
         # isolated: MLX block on torch trajectory input
         iso = mb(mx.array(t_h.numpy()), mx.array(modulation.numpy()), rotary_freqs=m_freqs, segments=SEGS)
         mx.eval(iso)

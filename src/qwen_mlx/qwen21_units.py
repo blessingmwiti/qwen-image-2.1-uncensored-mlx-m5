@@ -77,6 +77,17 @@ def modulation_proj(x: mx.array, w: mx.array) -> mx.array:
     return _silu(x) @ w.T
 
 
+def gelu_tanh(x: mx.array) -> mx.array:
+    """Exact tanh-approximation GELU (matches nn.GELU(approximate='tanh'))."""
+    c = math.sqrt(2.0 / math.pi)
+    return 0.5 * x * (1 + mx.tanh(c * (x + 0.044715 * x ** 3)))
+
+
+def text_projection(x: mx.array, norm_w: mx.array, in_w: mx.array, out_w: mx.array, eps: float = 1e-6) -> mx.array:
+    """QwenImage21TextProjection: ZeroCenterRMSNorm -> Linear -> GELU(tanh) -> Linear (no biases)."""
+    return gelu_tanh(zero_center_rmsnorm(x, norm_w, eps) @ in_w.T) @ out_w.T
+
+
 def rope_freqs(index: mx.array, dim: int, theta: int = 10000) -> mx.array:
     """Complex RoPE freqs: polar(1, outer(index, 1/theta^(arange(0,dim,2)/dim))). Returns complex64 [N, dim//2]."""
     idx = index.astype(mx.float32)

@@ -66,7 +66,7 @@ def test_block_segmented_with_rope():
         ref = tb(h, modulation, rotary_emb=r_freqs, attention_mask=None, segments=SEGS)
 
     mw = {k: mx.array(v.numpy()) for k, v in w.items()}
-    mb = DiTBlock(mw)
+    mb = DiTBlock.from_dict(mw)
     m_freqs = build_rope_freqs(SHAPES, mx.array(MASK), build_tables())
     got = mb(mx.array(h.numpy()), mx.array(modulation.numpy()), rotary_freqs=m_freqs, segments=SEGS)
     mx.eval(got)
