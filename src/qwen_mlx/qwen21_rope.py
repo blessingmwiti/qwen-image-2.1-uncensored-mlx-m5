@@ -34,7 +34,8 @@ def build_rope_freqs(
     tables: list[mx.array] | None = None,
 ) -> mx.array:
     """img_shapes: per-sample list of (1,h,w) blocks (condition images + target).
-    image_pad_mask: bool [B,S] over the joint sequence. Returns complex [S,128] (batch shares layout: row 0)."""
+    image_pad_mask: POST-EXPANSION bool mask over the joint sequence (length P + 4*slots);
+    True at image-token positions. Batch shares layout: row 0. Returns complex [S,128]."""
     tables = tables if tables is not None else build_tables()
     mask = image_pad_mask.tolist()
     if mask and isinstance(mask[0], list):
