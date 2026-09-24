@@ -24,6 +24,11 @@ No code written yet. This is the conversion blueprint; implement smallest-first 
 4. VAE encode/decode round-trip.
 5. End-to-end BF16 MLX → quant matrix (Q8/Q6/Q5/Q4) → 16GB benchmark.
 
+## Precision (MEASURED 2026-09-24, M5 Metal, mlx 0.32.0)
+- Plain fp32 matmul torch-CPU vs MLX-Metal: max abs diff 7e-3 (K=128) → 4e-2 (K=4096) at outmax 9→55; error is K-INDEPENDENT (~1e-3 relative). Cause: Metal GEMM precision, not our math (torch sigmoid matches MLX to 1.2e-07; CPU-vs-MPS control agrees to 4e-3 max).
+- Consequence: block/e2e tests use scale-aware tolerance (rtol 5e-3 + atol floor, mean-diff bound). E2E equivalence gate = QUALITY-level (exp-001 bar: adherence/composition), never pixel-identity — same rationale as upstream's own KV-cache note.
+- BF16/quantized targets inherit coarser error; quality bar absorbs it. This is evidence, not a waiver: any diff ABOVE platform noise fails.
+
 ## Risks
 - Block-causal mask in MLX: no flex_attention; implement exact segmented SDPA (default processor logic, not flex).
 - GQA in TE (32Q:8KV) if porting TE; DiT itself is MHA 32×d128 (no GQA).
