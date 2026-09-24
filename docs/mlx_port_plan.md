@@ -29,6 +29,11 @@ No code written yet. This is the conversion blueprint; implement smallest-first 
 - Consequence: block/e2e tests use scale-aware tolerance (rtol 5e-3 + atol floor, mean-diff bound). E2E equivalence gate = QUALITY-level (exp-001 bar: adherence/composition), never pixel-identity — same rationale as upstream's own KV-cache note.
 - BF16/quantized targets inherit coarser error; quality bar absorbs it. This is evidence, not a waiver: any diff ABOVE platform noise fails.
 
+## Sequencing decision (2026-09-24, evidence-based)
+- VAE MLX port DEFERRED: real `_decode` always uses the temporal feat-cache path (CACHE_T=2, first_chunk semantics, DupUp time-slicing); the no-cache path is broken for T=1 (verified by direct-call failure). Torch VAE stays (verified in smokes). MLX VAE = follow-up.
+- E2E path = hybrid: torch TE + **MLX DiT** + torch VAE. DiT is the quant target and representation site. Memory forces quantized MLX DiT (BF16 14.2GB resident doesn't fit 16GB alongside TE) → quant matrix doubles as enabler.
+- Next: causal row-select + joint-input builder, then Q8→Q4 DiT + 8-step hybrid vs `smoke_s8` bar (same seed/prompt).
+
 ## Risks
 - Block-causal mask in MLX: no flex_attention; implement exact segmented SDPA (default processor logic, not flex).
 - GQA in TE (32Q:8KV) if porting TE; DiT itself is MHA 32×d128 (no GQA).

@@ -51,13 +51,20 @@ def layer_norm_no_affine(x: mx.array, eps: float = 1e-6) -> mx.array:
     return (x - mu) / mx.sqrt(var + eps)
 
 
-def adaln_scale(x: mx.array, cond: mx.array, linear_w: mx.array, eps: float = 1e-6) -> mx.array:
-    """AdaLayerNormContinuous (scale-only): norm(x) * (1 + Linear(silu(cond))).
+def select_rows(params: mx.array, mask: mx.array | None) -> mx.array:
+    """Mirror `_select_modulation_rows`. params [R,D] (R=B, or B+1 with t=0 trailing row under
+    causal_condition); mask [S] bool True at target-image positions, None = every token own row."""
+    if mask is None:
+        return mx.expand_dims(params, 1)
+    real = mx.expand_dims(params[:-1], 1)
+    zero = mx.expand_dims(params[-1:], 0)
+    return mx.where(mask.reshape(1, -1, 1), real, zero)
 
-    Mirrors `_select_modulation_rows(..., mask=None)` = unsqueeze(1): scale broadcasts over tokens.
-    """
+
+def adaln_scale(x: mx.array, cond: mx.array, linear_w: mx.array, eps: float = 1e-6, mask: mx.array | None = None) -> mx.array:
+    """AdaLayerNormContinuous (scale-only) with causal row-select (mask None = broadcast own row)."""
     scale = _silu(cond).astype(x.dtype) @ linear_w.T
-    return layer_norm_no_affine(x, eps) * (1 + mx.expand_dims(scale, 1))
+    return layer_norm_no_affine(x, eps) * (1 + select_rows(scale, mask))
 
 
 def timestep_mlp(x: mx.array, w1: mx.array, w2: mx.array) -> mx.array:

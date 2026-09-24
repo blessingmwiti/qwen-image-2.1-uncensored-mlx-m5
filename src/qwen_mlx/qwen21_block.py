@@ -11,7 +11,7 @@ import math
 
 import mlx.core as mx
 
-from qwen_mlx.qwen21_units import apply_rotary_complex, layer_norm_no_affine, swiglu
+from qwen_mlx.qwen21_units import apply_rotary_complex, layer_norm_no_affine, select_rows, swiglu
 
 
 def rmsnorm(x: mx.array, weight: mx.array, eps: float = 1e-6) -> mx.array:
@@ -20,10 +20,10 @@ def rmsnorm(x: mx.array, weight: mx.array, eps: float = 1e-6) -> mx.array:
     return (xf * mx.rsqrt(mx.mean(xf * xf, axis=-1, keepdims=True) + eps) * weight.astype(mx.float32)).astype(dtype)
 
 
-def _modulate(h: mx.array, mod: mx.array) -> tuple[mx.array, mx.array]:
-    """mod [..., 2*D] -> (h*(1+scale), gate); caller handles CausalCondition row select + seq broadcast."""
+def _modulate(h: mx.array, mod: mx.array, mask: mx.array | None = None) -> tuple[mx.array, mx.array]:
+    """mod [..., 2*D] -> (h*(1+scale), gate), with causal row-select over tokens."""
     scale, gate = mx.split(mod, 2, axis=-1)
-    return h * (1 + scale), gate
+    return h * (1 + select_rows(scale, mask)), select_rows(gate, mask)
 
 
 class DiTBlock:
@@ -107,15 +107,14 @@ class DiTBlock:
         modulation: mx.array,
         rotary_freqs: mx.array | None = None,
         segments: list[tuple[int, int, bool]] | None = None,
+        target_token_mask: mx.array | None = None,
     ) -> mx.array:
-        """h [B,S,D], modulation [B,4D] (target_token_mask=None path: unsqueezed inside torch; pass per-sample row)."""
-        mod1, mod2 = mx.split(modulation, 2, axis=1)  # each [B,2D]
-        m1 = mx.expand_dims(mod1, 1)  # [B,1,2D] broadcast over tokens
-        m2 = mx.expand_dims(mod2, 1)
-        hm, g1 = _modulate(layer_norm_no_affine(h, self.eps), m1)
+        """h [B,S,D]; modulation [B,4D] (mask None) or [B+1,4D] with causal t=0 row + mask."""
+        mod1, mod2 = mx.split(modulation, 2, axis=1)  # each [R,2D]
+        hm, g1 = _modulate(layer_norm_no_affine(h, self.eps), mod1, target_token_mask)
         attn_out = self.attn_segmented(hm, rotary_freqs, segments) if segments is not None else self.attn(hm, rotary_freqs)
         h = h + mx.tanh(g1) * attn_out
-        hm2, g2 = _modulate(layer_norm_no_affine(h, self.eps), m2)
+        hm2, g2 = _modulate(layer_norm_no_affine(h, self.eps), mod2, target_token_mask)
         return h + mx.tanh(g2) * swiglu(
             hm2, self.w["img_mlp.gate_layer.weight"], self.w["img_mlp.proj.weight"], self.w["img_mlp.out.weight"]
         )

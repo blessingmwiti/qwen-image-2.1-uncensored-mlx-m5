@@ -36,9 +36,10 @@ class DiTModel:
         timestep: mx.array,
         rotary_freqs: mx.array,
         segments: list[tuple[int, int, bool]],
+        target_token_mask: mx.array | None = None,
     ) -> mx.array:
         temb, modulation = self.time_embed(timestep)
         for block in self.blocks:
-            h = block(h, modulation, rotary_freqs=rotary_freqs, segments=segments)
-        h = adaln_scale(h, temb, self.g["norm_out.linear.weight"])
+            h = block(h, modulation, rotary_freqs=rotary_freqs, segments=segments, target_token_mask=target_token_mask)
+        h = adaln_scale(h, temb, self.g["norm_out.linear.weight"], mask=target_token_mask)
         return h @ self.g["proj_out.weight"].T
