@@ -1,0 +1,1 @@
+{"exp": "exp-002", "status": "success", "ranking": "V2 >> V4 > V3=0 (as predicted)", "v2_l2": 6328.1909, "v2_cosine": 0.513709, "v3_l2": 0.0, "v4_short_l2": 72.5307, "verdict": "pre-norm hook dominant; padding second-order; empty-guard exact"}

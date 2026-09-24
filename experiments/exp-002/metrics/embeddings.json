@@ -1,0 +1,36 @@
+{
+  "model": "Qwen/Qwen-Image-2.1",
+  "revision": "790c92633540aa0cb11d9abf19eb46d861714758",
+  "status": "success",
+  "variants": {
+    "V1": {
+      "shape": [
+        1,
+        19,
+        4096
+      ]
+    },
+    "V2_no_hook_vs_hook": {
+      "l2": 6328.1909,
+      "cosine": 0.513709
+    },
+    "V3_empty_vs_space": {
+      "l2": 0.0,
+      "cosine": 1.000003
+    },
+    "V4_left_vs_right_pad": [
+      {
+        "l2": 72.5307,
+        "cosine": 0.999528,
+        "len_l": 9,
+        "len_r": 9
+      },
+      {
+        "l2": 0.0,
+        "cosine": 0.999991,
+        "len_l": 19,
+        "len_r": 19
+      }
+    ]
+  }
+}

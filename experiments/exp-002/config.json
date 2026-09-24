@@ -1,0 +1,1 @@
+{"exp": "exp-002", "type": "observational", "model": "Qwen/Qwen-Image-2.1", "revision": "790c92633540aa0cb11d9abf19eb46d861714758", "scope": "text-encoder-only", "variants": ["V1-reference", "V2-no-prenorm-hook", "V3-empty-vs-space", "V4-right-vs-left-pad"], "weight_modification": false, "generates_images": false}
