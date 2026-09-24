@@ -60,6 +60,16 @@ def adaln_scale(x: mx.array, cond: mx.array, linear_w: mx.array, eps: float = 1e
     return layer_norm_no_affine(x, eps) * (1 + mx.expand_dims(scale, 1))
 
 
+def timestep_mlp(x: mx.array, w1: mx.array, w2: mx.array) -> mx.array:
+    """TimestepEmbedding (no biases): Linear2(silu(Linear1(x)))."""
+    return _silu(x @ w1.T) @ w2.T
+
+
+def modulation_proj(x: mx.array, w: mx.array) -> mx.array:
+    """Shared modulation: Linear(silu(x)), no bias. Output [B,4D]."""
+    return _silu(x) @ w.T
+
+
 def rope_freqs(index: mx.array, dim: int, theta: int = 10000) -> mx.array:
     """Complex RoPE freqs: polar(1, outer(index, 1/theta^(arange(0,dim,2)/dim))). Returns complex64 [N, dim//2]."""
     idx = index.astype(mx.float32)
