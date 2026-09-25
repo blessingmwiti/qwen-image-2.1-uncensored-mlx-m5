@@ -95,6 +95,7 @@ def main() -> int:
     ap.add_argument("--bits", type=int, default=8)
     ap.add_argument("--steps", type=int, default=8)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--tag", default=None)
     args = ap.parse_args()
 
     from diffusers import QwenImage21Pipeline
@@ -102,6 +103,7 @@ def main() -> int:
     out = Path("experiments/hybrid")
     (out / "outputs").mkdir(parents=True, exist_ok=True)
     (out / "logs").mkdir(exist_ok=True)
+    tag = args.tag or f"q{args.bits}"
 
     dtype = torch.bfloat16 if torch.backends.mps.is_available() else torch.float32
     t0 = time.time()
@@ -171,23 +173,62 @@ def main() -> int:
     joint_tgt = mx.array(np.array([[False] * P + [True] * 4096]))
 
     t_denoise = time.time()
+    peak = {"rss": 0.0, "swap": 0.0}
+    stop_flag = {"stop": False}
+
+    def _sample():
+        try:
+            import psutil
+
+            proc = psutil.Process()
+            while not stop_flag["stop"]:
+                peak["rss"] = max(peak["rss"], proc.memory_info().rss / 1e9)
+                try:
+                    peak["swap"] = max(peak["swap"], psutil.swap_memory().used / 1e9)
+                except Exception:
+                    pass
+                time.sleep(0.5)
+        except Exception:
+            pass
+
+    import threading as _th
+
+    _sampler = _th.Thread(target=_sample, daemon=True)
+    _sampler.start()
+    caches = None
     for i, t in enumerate(timesteps):
         s0 = time.time()
         m_lat = t2m(latents.float())
         h_lat, enc = dit.project_inputs(m_lat, m_enc)
         joint = dit.build_joint(h_lat, enc, pre_mask, shapes)
         ts = mx.array(np.array([float(t) / 1000.0, 0.0], dtype=np.float32))
-        noise = dit(joint, ts, m_freqs, m_segs, joint_tgt)
-        mx.eval(noise)
-        L = latents.shape[1]
-        npred = m2t(noise)[:, -L:].to(device=latents.device, dtype=latents.dtype)
+        if i == 0:
+            noise_full, caches = dit.prefill(joint, ts, m_freqs, m_segs, joint_tgt, P)
+            mx.eval(noise_full)
+            L = latents.shape[1]
+            npred = m2t(noise_full)[:, -L:].to(device=latents.device, dtype=latents.dtype)
+        else:
+            tgt = joint[:, P:]
+            mx.eval(tgt)
+            noise_t = dit.decode(tgt, ts, m_freqs[P:], joint_tgt[:, P:], caches)
+            mx.eval(noise_t)
+            npred = m2t(noise_t).to(device=latents.device, dtype=latents.dtype)
         latents = pipe.scheduler.step(npred, t, latents, return_dict=False)[0]
         print(f"step {i+1}/{len(timesteps)} {time.time()-s0:.1f}s", flush=True)
+    stop_flag["stop"] = True
 
     gen_s = time.time() - t_denoise
+    stop_flag["stop"] = True
     print(f"denoise done in {gen_s:.1f}s; saving latents before decode", flush=True)
-    torch.save({"latents": latents.cpu(), "steps": args.steps, "seed": args.seed, "bits": args.bits}, out / f"latents_q{args.bits}.pt")
-    print("latents saved; freeing MLX DiT before VAE decode", flush=True)
+    torch.save({"latents": latents.cpu(), "steps": args.steps, "seed": args.seed, "bits": args.bits}, out / f"latents_{tag}.pt")
+    (out / f"metrics_hybrid_{tag}.json").write_text(json.dumps({
+        "model": REPO, "revision": REVISION, "dit": f"mlx-Q{args.bits}", "resolution": "1024x1024",
+        "steps": args.steps, "seed": args.seed, "generation_seconds": round(gen_s, 1),
+        "seconds_per_step": round(gen_s / args.steps, 1),
+        "peak_rss_gb": round(peak["rss"], 2), "swap_used_gb": round(peak["swap"], 2),
+        "kv_cache": True, "status": "denoised",
+    }, indent=2))
+    print("latents+metrics saved; freeing MLX DiT before VAE decode", flush=True)
     try:
         import mlx.metal as _metal
 
@@ -209,16 +250,18 @@ def main() -> int:
     std = torch.tensor(pipe.vae.config.latents_std).view(1, 64, 1, 1, 1).to(lat.device, lat.dtype)
     image = pipe.vae.decode(lat * std + mean, return_dict=False)[0][:, :, 0]
     image = pipe.image_processor.postprocess(image, output_type="pil")[0]
-    img_path = out / "outputs" / f"hybrid_q{args.bits}.png"
+    img_path = out / "outputs" / f"hybrid_{tag}.png"
     image.save(img_path)
     sha = hashlib.sha256(img_path.read_bytes()).hexdigest()[:16]
     res = {
         "model": REPO, "revision": REVISION, "dit": f"mlx-Q{args.bits}", "resolution": "1024x1024",
         "steps": args.steps, "seed": args.seed, "output": str(img_path), "sha_prefix": sha,
         "generation_seconds": round(gen_s, 1), "seconds_per_step": round(gen_s / args.steps, 1),
+        "peak_rss_gb": round(peak["rss"], 2), "swap_used_gb": round(peak["swap"], 2),
+        "kv_cache": True,
         "status": "success",
     }
-    (out / f"metrics_hybrid_q{args.bits}.json").write_text(json.dumps(res, indent=2))
+    (out / f"metrics_hybrid_{tag}.json").write_text(json.dumps(res, indent=2))
     print(json.dumps(res, indent=2))
     return 0
 

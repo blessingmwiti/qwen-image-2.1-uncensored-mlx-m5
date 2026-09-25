@@ -41,15 +41,25 @@ def main() -> int:
         image = vae.decode(lat * std + mean, return_dict=False)[0][:, :, 0]
     image = proc.postprocess(image, output_type="pil")[0]
     (out / "outputs").mkdir(exist_ok=True)
-    img_path = out / "outputs" / f"hybrid_q{bits}.png"
+    tag = inp.stem.replace("latents_", "")
+    img_path = out / "outputs" / f"hybrid_{tag}.png"
     image.save(img_path)
     sha = hashlib.sha256(img_path.read_bytes()).hexdigest()[:16]
     res = {
         "dit": f"mlx-Q{bits}", "resolution": "1024x1024", "steps": d["steps"], "seed": d["seed"],
-        "output": str(img_path), "sha_prefix": sha, "decode_seconds": round(time.time() - t0, 1),
+        "output": str(img_path), "sha_prefix": sha,
+        "decode_seconds": round(time.time() - t0, 1),
         "status": "success",
     }
-    (out / f"metrics_hybrid_q{bits}.json").write_text(json.dumps(res, indent=2))
+    mpath = out / f"metrics_hybrid_{tag}.json"
+    if mpath.exists():
+        try:
+            prev = json.loads(mpath.read_text())
+            prev.update(res)
+            res = prev
+        except Exception:
+            pass
+    mpath.write_text(json.dumps(res, indent=2))
     print(json.dumps(res, indent=2))
     return 0
 

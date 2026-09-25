@@ -105,17 +105,36 @@ class DiTModel:
         rep[:, exp_mask] = h_np
         return mx.array(rep)
 
-    def __call__(
+    def prefill(
         self,
         h: mx.array,
         timestep: mx.array,
         rotary_freqs: mx.array,
         segments: list[tuple[int, int, bool]],
-        target_token_mask: mx.array | None = None,
-    ) -> mx.array:
-        """timestep: [t] (mask None) or [t, 0] (causal t=0 row + mask). Pipeline passes t/1000."""
+        target_token_mask: mx.array,
+        prefix_len: int,
+    ):
+        """Full prefill + per-block prefix caches. Returns (full_output, caches)."""
         temb, modulation = self.time_embed(timestep)
+        caches = []
         for block in self.blocks:
-            h = block(h, modulation, rotary_freqs=rotary_freqs, segments=segments, target_token_mask=target_token_mask)
+            h, c = block.prefill_extract(h, modulation, rotary_freqs, segments, target_token_mask, prefix_len)
+            caches.append(c)
         h = adaln_scale(h, temb, self.g["norm_out.linear.weight"], mask=target_token_mask)
+        return h @ self.g["proj_out.weight"].T, caches
+
+    def decode(
+        self,
+        h_tgt: mx.array,
+        timestep: mx.array,
+        rotary_tgt: mx.array,
+        target_mask_tgt: mx.array,
+        caches: list[dict],
+    ):
+        """Target-only decode with cached prefix K/V. Returns target noise pred."""
+        temb, modulation = self.time_embed(timestep)
+        h = h_tgt
+        for block, c in zip(self.blocks, caches):
+            h = block.decode_cached(h, modulation, rotary_tgt, target_mask_tgt, c)
+        h = adaln_scale(h, temb, self.g["norm_out.linear.weight"], mask=target_mask_tgt)
         return h @ self.g["proj_out.weight"].T
