@@ -96,6 +96,7 @@ def main() -> int:
     ap.add_argument("--steps", type=int, default=8)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--tag", default=None)
+    ap.add_argument("--dit-weights", default=None)
     args = ap.parse_args()
 
     from diffusers import QwenImage21Pipeline
@@ -128,8 +129,17 @@ def main() -> int:
     print(f"components loaded in {time.time()-t0:.1f}s (torch DiT skipped)", flush=True)
 
     t0 = time.time()
-    dit = load_mlx_dit(args.bits)
-    print(f"MLX DiT Q{args.bits} ready in {time.time()-t0:.1f}s", flush=True)
+    if args.dit_weights:
+        from qwen_mlx.qwen21_dit import DiTModel
+        from qwen_mlx.qwen21_load import load_qdit
+
+        globals_w, blocks = load_qdit(args.dit_weights, bits=args.bits)
+        dit = DiTModel(globals_w, [])
+        dit.blocks = blocks
+        print(f"MLX DiT loaded from {args.dit_weights} in {time.time()-t0:.1f}s", flush=True)
+    else:
+        dit = load_mlx_dit(args.bits)
+        print(f"MLX DiT Q{args.bits} ready in {time.time()-t0:.1f}s", flush=True)
 
     from qwen_mlx.qwen21_dit import build_token_metadata, prefix_segments
     from qwen_mlx.qwen21_rope import build_rope_freqs, build_tables

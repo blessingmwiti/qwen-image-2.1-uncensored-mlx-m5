@@ -27,8 +27,14 @@ MacBook Pro Mac17,2 / M5 10-core / 17.18GB / macOS 27.0. See `docs/env_baseline.
 | fp32 MLX | 27.9GB | 0.0079 | reference (does not fit 16GB) |
 | BF16 file | 14.23GB | n/a | does not fit resident w/ TE |
 | Q8 (g64 affine) | ~7.3GB | 0.067 | e2e VERIFIED (teapot) |
-| Q4 (g64 affine) | ~3.7GB | 1.10 | e2e VERIFIED (teapot meets bar) |
+| Q4 (g64 affine) | 4.91GB on disk (`models/qwen21-dit-q4.safetensors`, incl. fp32 scales) | 1.10 | e2e VERIFIED (teapot meets bar); disk-loaded run sha-IDENTICAL |
 | Q6/Q5 | — | — | NOT RUN (MLX affine supports any bits; run if Q4 fails bar) |
+
+## Deployment checkpoint (§7)
+- `models/qwen21-dit-q4.safetensors` (4.91GB, gitignored) + `.json` meta, via
+  `scripts/export_qdit.py`. Roundtrip test bit-exact (0.0). Disk-loaded e2e
+  sha-identical to fresh-quantized. Load with `scripts/mlx_dit_hybrid.py --dit-weights`.
+- Resident estimate: ~4.9GB DiT + TE streaming. Swap remains TE-driven (13–15GB system).
 
 ## Memory verdict (MEASURED, sampler thread, process RSS + system swap)
 - Hybrid Q4 cached @8: peak process RSS 4.32GB (EXCLUDES Metal-side MLX buffers —

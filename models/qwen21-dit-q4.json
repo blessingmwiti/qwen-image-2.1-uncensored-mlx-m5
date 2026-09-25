@@ -1,0 +1,8 @@
+{
+  "repo": "Qwen/Qwen-Image-2.1",
+  "revision": "790c92633540aa0cb11d9abf19eb46d861714758",
+  "bits": 4,
+  "group_size": 64,
+  "seconds": 41.4,
+  "bytes": 4905358784
+}
