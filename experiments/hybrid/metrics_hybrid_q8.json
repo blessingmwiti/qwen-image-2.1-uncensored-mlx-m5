@@ -1,0 +1,10 @@
+{
+  "dit": "mlx-Q8",
+  "resolution": "1024x1024",
+  "steps": 8,
+  "seed": 42,
+  "output": "experiments/hybrid/outputs/hybrid_q8.png",
+  "sha_prefix": "dbccf10786e3ef83",
+  "decode_seconds": 85.1,
+  "status": "success"
+}

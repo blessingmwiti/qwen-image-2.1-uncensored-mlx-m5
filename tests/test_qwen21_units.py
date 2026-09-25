@@ -10,9 +10,11 @@ from qwen_mlx.qwen21_units import (
     adaln_scale,
     apply_rotary_complex,
     layer_norm_no_affine,
+    modulation_proj,
     rope_freqs,
     swiglu,
     temporal_timesteps,
+    timestep_mlp,
     zero_center_rmsnorm,
 )
 
@@ -112,3 +114,25 @@ def test_layer_norm_no_affine():
     ref = torch.nn.functional.layer_norm(x, (32,), eps=1e-6)
     got = layer_norm_no_affine(to_mx(x))
     assert close(got, ref)
+
+
+def test_timestep_mlp_and_modulation():
+    from diffusers.models.transformers.transformer_qwenimage21 import QwenImage21TimestepProjEmbeddings
+
+    torch.manual_seed(5)
+    mod = QwenImage21TimestepProjEmbeddings(embedding_dim=64).float()
+    t = torch.tensor([0.37, 0.91])
+    dummy_h = torch.randn(2, 4, 64)
+    with torch.no_grad():
+        ref_temb = mod(t, dummy_h)
+    got_proj = temporal_timesteps(mx.array(np.array([0.37, 0.91], dtype=np.float32)))
+    got_temb = timestep_mlp(got_proj, to_mx(mod.timestep_embedder.linear_1.weight.detach()), to_mx(mod.timestep_embedder.linear_2.weight.detach()))
+    # tol 1e-3: temporal(5.5e-05) + 2 chained Metal matmuls (measured 4.5e-04 max here)
+    assert close(got_temb, ref_temb, tol=1e-3)
+
+    # shared modulation Sequential(SiLU, Linear(64 -> 256, no bias)) shape-analog of the real 4096 -> 16384
+    lin = torch.nn.Linear(64, 256, bias=False).float()
+    with torch.no_grad():
+        ref_mod = torch.nn.functional.silu(ref_temb) @ lin.weight.T
+    got_mod = modulation_proj(got_temb, to_mx(lin.weight.detach()))
+    assert close(got_mod, ref_mod, tol=1e-3)
