@@ -48,7 +48,7 @@ def test_hybrid_metrics_schema():
     for p in ("experiments/hybrid/metrics_hybrid_q8.json", "experiments/hybrid/metrics_hybrid_q4.json"):
         m = _load(p)
         assert m["status"] == "success"
-        assert m["steps"] == 8 and m["seed"] == 42
+        assert m["seed"] == 42 and m["steps"] in (8, 40)
         assert len(m["sha_prefix"]) == 16
 
 

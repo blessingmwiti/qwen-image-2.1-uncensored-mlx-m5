@@ -17,7 +17,8 @@ MacBook Pro Mac17,2 / M5 10-core / 17.18GB / macOS 27.0. See `docs/env_baseline.
 | run | steps | denoise | s/step | decode | sha | verdict |
 |---|---|---|---|---|---|---|
 | hybrid_q8 | 8 | 136.9s | ~17 | 85.1s CPU | dbccf107 | adherent teapot, matches smoke composition |
-| hybrid_q4 | 8 | ~135s | ~17 | 83.7s CPU | 4aadc2c | adherent teapot, knob detail present — MEETS BAR |
+| hybrid_q4 | 8 | ~135s | ~17 | 83.7s CPU | 4aadc2c | adherent teapot, knob detail present |
+| hybrid_q4 | 40 | 499.4s | 12.5 | 97.3s CPU | 3cb4c5e0 | superb: bail handle, glaze, wood — MEETS 40-step BAR |
 
 ## Quantization matrix (DiT linears; block0-measured, full-DiT projected)
 | config | size | block0 meanΔ vs torch | status |
