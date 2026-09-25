@@ -97,6 +97,8 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--tag", default=None)
     ap.add_argument("--dit-weights", default=None)
+    ap.add_argument("--prompt", default=PROMPT)
+    ap.add_argument("--image", default=None)
     args = ap.parse_args()
 
     from diffusers import QwenImage21Pipeline
@@ -146,13 +148,35 @@ def main() -> int:
 
     gen = torch.Generator("cpu").manual_seed(args.seed)
     t1 = time.time()
-    prompt_embeds, prompt_embeds_mask, image_pad_mask = pipe.encode_prompt(PROMPT, device=pipe._execution_device)
+    from diffusers.pipelines.qwenimage21.pipeline_qwenimage21 import calculate_dimensions
+
+    cond_pil, vae_img, input_size = None, None, None
+    if args.image:
+        from PIL import Image as PILImage
+
+        img0 = PILImage.open(args.image).convert("RGBA")
+        iw, ih = img0.size
+        input_size = calculate_dimensions(1024 * 1024, iw / ih)[:2]
+        cond_pil = pipe.image_processor.resize(img0, width=input_size[0], height=input_size[1])
+        vae_img = pipe.image_processor.preprocess(img0, width=input_size[0], height=input_size[1]).unsqueeze(2)
+    prompt_embeds, prompt_embeds_mask, image_pad_mask = pipe.encode_prompt(
+        args.prompt, image=[cond_pil] if cond_pil is not None else None, device=pipe._execution_device,
+    )
     print(f"encoded in {time.time()-t1:.1f}s", flush=True)
 
     # latents via pipeline helper (T2I: no condition images)
-    latents, _ = pipe.prepare_latents(
-        None, 1, 64, 1024, 1024, prompt_embeds.dtype, pipe._execution_device, gen, None,
+    latents, cond_latents = pipe.prepare_latents(
+        [vae_img] if vae_img is not None else None, 1, 64, 1024, 1024,
+        prompt_embeds.dtype, pipe._execution_device, gen, None,
     )
+    if cond_pil is not None:
+        vw, vh = input_size
+        shapes = [(1, vh // 16, vw // 16), (1, 64, 64)]
+    else:
+        shapes = [(1, 64, 64)]
+    # append target slots to the prefix mask (mirror pipeline append_target_slots)
+    n_slots = latents.shape[1] // 4
+    pre_mask_t = torch.cat([image_pad_mask, image_pad_mask.new_ones(image_pad_mask.shape[0], n_slots)], dim=1)
     # img_shapes for 1024 T2I target
     # (metadata built with MLX builders below; torch reference mirrored in tests)
 
@@ -168,19 +192,22 @@ def main() -> int:
 
     # prompt/latent projections in MLX (per step inputs are torch; convert)
     m_enc = t2m(prompt_embeds.float())
-    P = m_enc.shape[1]
+    m_cond = t2m(cond_latents.float()) if cond_latents is not None else None
     tables = build_tables()
-    shapes = [(1, 64, 64)]
-    pre_mask = mx.array(np.array([[False] * P + [True] * 1024]))
-    m_ids, _ = build_token_metadata(
-        mx.array(np.repeat(np.array([[False] * P + [True] * 1024]), [1] * P + [4] * 1024, axis=1)), shapes
-    )
+    pre_np = np.array(pre_mask_t)
+    rep_pat = [4 if b else 1 for b in pre_np[0]]
+    exp_np = np.repeat(pre_np, rep_pat, axis=1)
+    m_ids, m_tgt_full = build_token_metadata(mx.array(exp_np), shapes)
+    mx.eval(m_ids, m_tgt_full)
+    P = int(exp_np.shape[1] - np.asarray(m_tgt_full).sum())  # non-target prefix length
+    pre_mask = mx.array(pre_np)
+    m_ids, _ = build_token_metadata(mx.array(exp_np), shapes)
     m_segs = prefix_segments(m_ids, P)
-    # rope MUST use the post-expansion mask (length P + 4096), not the slot mask
-    m_exp = mx.array(np.repeat(np.array([[False] * P + [True] * 1024]), [1] * P + [4] * 1024, axis=1))
-    m_freqs = build_rope_freqs([shapes], m_exp, tables)
-    # target_token_mask over JOINT sequence: prefix text False, all 4096 target True
-    joint_tgt = mx.array(np.array([[False] * P + [True] * 4096]))
+    # rope MUST use the post-expansion mask (length P + target tokens), not the slot mask
+    m_freqs = build_rope_freqs([shapes], mx.array(exp_np), tables)
+    # target_token_mask over JOINT sequence: prefix False, target True
+    tgt_np = np.asarray(m_tgt_full)
+    joint_tgt = mx.array(tgt_np[None, :])
 
     t_denoise = time.time()
     peak = {"rss": 0.0, "swap": 0.0}
@@ -209,6 +236,8 @@ def main() -> int:
     for i, t in enumerate(timesteps):
         s0 = time.time()
         m_lat = t2m(latents.float())
+        if m_cond is not None:
+            m_lat = mx.concatenate([m_cond, m_lat], axis=1)
         h_lat, enc = dit.project_inputs(m_lat, m_enc)
         joint = dit.build_joint(h_lat, enc, pre_mask, shapes)
         ts = mx.array(np.array([float(t) / 1000.0, 0.0], dtype=np.float32))
@@ -230,7 +259,7 @@ def main() -> int:
     gen_s = time.time() - t_denoise
     stop_flag["stop"] = True
     print(f"denoise done in {gen_s:.1f}s; saving latents before decode", flush=True)
-    torch.save({"latents": latents.cpu(), "steps": args.steps, "seed": args.seed, "bits": args.bits}, out / f"latents_{tag}.pt")
+    torch.save({"latents": latents.cpu(), "steps": args.steps, "seed": args.seed, "bits": args.bits, "prompt": args.prompt, "input_image": args.image}, out / f"latents_{tag}.pt")
     (out / f"metrics_hybrid_{tag}.json").write_text(json.dumps({
         "model": REPO, "revision": REVISION, "dit": f"mlx-Q{args.bits}", "resolution": "1024x1024",
         "steps": args.steps, "seed": args.seed, "generation_seconds": round(gen_s, 1),
@@ -265,7 +294,7 @@ def main() -> int:
     sha = hashlib.sha256(img_path.read_bytes()).hexdigest()[:16]
     res = {
         "model": REPO, "revision": REVISION, "dit": f"mlx-Q{args.bits}", "resolution": "1024x1024",
-        "steps": args.steps, "seed": args.seed, "output": str(img_path), "sha_prefix": sha,
+        "steps": args.steps, "seed": args.seed, "prompt": args.prompt, "input_image": args.image, "output": str(img_path), "sha_prefix": sha,
         "generation_seconds": round(gen_s, 1), "seconds_per_step": round(gen_s / args.steps, 1),
         "peak_rss_gb": round(peak["rss"], 2), "swap_used_gb": round(peak["swap"], 2),
         "kv_cache": True,
