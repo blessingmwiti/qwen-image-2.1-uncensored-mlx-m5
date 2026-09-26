@@ -1,5 +1,7 @@
 # Qwen Image 2.1 → MLX for Apple Silicon (M5, 16GB)
 
+## Paused this project due to RAM Limitations 
+
 Reproducible MLX port of [Qwen-Image-2.1](https://huggingface.co/Qwen/Qwen-Image-2.1)
 (`790c9263`), hybrid pipeline: torch text encoder + **MLX diffusion transformer**
 (Q8/Q4) + torch VAE. Verified end-to-end at 1024×1024 on a 16GB M5 Mac.
