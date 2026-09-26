@@ -17,9 +17,15 @@ transformer forward Rogers → `scripts/mlx_dit_hybrid.py` (MLX DiT, full prefil
 per step, no KV cache). TE/VAE/scheduler stay torch. No weight modification.
 
 ## Expected / actual
-- Q8: sha `dbccf107` — adherent teapot, composition matches smoke. MEETS BAR.
-- Q4: sha `4aadc2c` — adherent, knob detail present. MEETS BAR (primary target ✓).
-- First Q8 attempt failed with top/bottom split: rope built on slot mask instead
+- Q8 @8: sha `dbccf107` — adherent teapot, composition matches smoke. MEETS BAR.
+- Q4 @8: sha `4aadc2ca` — adherent, knob detail present. MEETS BAR (primary target ✓).
+- Q4 @40: sha `3cb4c5e0`, denoise 499.4s (12.5s/step) — bail handle, glaze speckle,
+  wood grain. MEETS 40-step BAR. (Note: `outputs/` and `latents_q4.pt` hold the
+  latest (40-step) run; 8-step shas preserved in benchmarks + metrics history.)
+- Q4 @8 WITH KV-cache: sha IDENTICAL (`4aadc2ca`) — cache e2e-correct. BUT no
+  T2I speedup (272s vs 135s): with a 19-token prefix there is nothing to skip;
+  concat overhead dominates. Cache value = long-prefix editing (NOT RUN).
+  First Q8 attempt failed with top/bottom split: rope built on slot mask instead
   of expanded mask (see commit `4e5fee9`). Failure analysis documented in chat.
 
 ## Interpretation

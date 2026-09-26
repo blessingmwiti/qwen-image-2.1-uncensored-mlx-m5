@@ -1,0 +1,17 @@
+{
+  "model": "Qwen/Qwen-Image-2.1",
+  "revision": "790c92633540aa0cb11d9abf19eb46d861714758",
+  "dit": "mlx-Q4",
+  "resolution": "1024x1024",
+  "steps": 8,
+  "seed": 42,
+  "generation_seconds": 285.7,
+  "seconds_per_step": 35.7,
+  "peak_rss_gb": 5.52,
+  "swap_used_gb": 13.53,
+  "kv_cache": true,
+  "status": "success",
+  "output": "experiments/hybrid/outputs/hybrid_q4disk.png",
+  "sha_prefix": "4aadc2ca997728b7",
+  "decode_seconds": 80.0
+}

@@ -99,6 +99,36 @@ class DiTBlock(nn.Module):
         """Exact segmented prefill mirroring QwenImage21AttnProcessor (key_valid=None, no cache)."""
         B, S, _ = h.shape
         q, k, v = self._project_norm_rope(h, rotary_freqs)
+        o = self._segmented_from_qkv(q, k, v, segments)
+        return self.to_out(o)
+
+    def _modulate(self, h: mx.array, mod: mx.array, mask: mx.array | None):
+        scale, gate = mx.split(mod, 2, axis=-1)
+        return h * (1 + select_rows(scale, mask)), select_rows(gate, mask)
+
+    def prefill_extract(
+        self,
+        h: mx.array,
+        modulation: mx.array,
+        rotary_freqs: mx.array,
+        segments: list[tuple[int, int, bool]],
+        target_token_mask: mx.array,
+        prefix_len: int,
+    ) -> tuple[mx.array, dict]:
+        """Full segmented prefill + store post-RoPE prefix K/V. Returns (output, cache)."""
+        B, S, _ = h.shape
+        mod1, mod2 = mx.split(modulation, 2, axis=1)
+        hm, g1 = self._modulate(layer_norm_no_affine(h, self.eps), mod1, target_token_mask)
+        q, k, v = self._project_norm_rope(hm, rotary_freqs)
+        cache = {"k": k[:, :prefix_len], "v": v[:, :prefix_len]}
+        attn_out = self._segmented_from_qkv(q, k, v, segments)
+        h = h + mx.tanh(g1) * self.to_out(attn_out)
+        hm2, g2 = self._modulate(layer_norm_no_affine(h, self.eps), mod2, target_token_mask)
+        h = h + mx.tanh(g2) * self.out(_silu_in(self.gate(hm2)) * self.proj(hm2))
+        return h, cache
+
+    def _segmented_from_qkv(self, q, k, v, segments):
+        B, S, _, _ = q.shape
         q4 = mx.transpose(q, (0, 2, 1, 3))
         k4 = mx.transpose(k, (0, 2, 1, 3))
         v4 = mx.transpose(v, (0, 2, 1, 3))
@@ -122,12 +152,35 @@ class DiTBlock(nn.Module):
         outs.append(
             mx.fast.scaled_dot_product_attention(q4[:, :, prefix_len:, :], k4, v4, scale=self.scale, mask=None)
         )
-        o = mx.transpose(mx.concatenate(outs, axis=2), (0, 2, 1, 3)).reshape(B, S, -1)
-        return self.to_out(o)
+        return mx.transpose(mx.concatenate(outs, axis=2), (0, 2, 1, 3)).reshape(B, S, -1)
 
-    def _modulate(self, h: mx.array, mod: mx.array, mask: mx.array | None):
-        scale, gate = mx.split(mod, 2, axis=-1)
-        return h * (1 + select_rows(scale, mask)), select_rows(gate, mask)
+    def decode_cached(
+        self,
+        h_tgt: mx.array,
+        modulation: mx.array,
+        rotary_tgt: mx.array,
+        target_mask_tgt: mx.array,
+        cache: dict,
+    ) -> mx.array:
+        """Target-only decode: q from target tokens; K/V = concat(cached prefix, fresh target)."""
+        B, T, _ = h_tgt.shape
+        mod1, mod2 = mx.split(modulation, 2, axis=1)
+        hm, g1 = self._modulate(layer_norm_no_affine(h_tgt, self.eps), mod1, target_mask_tgt)
+        q, k_fresh, v_fresh = self._project_norm_rope(hm, rotary_tgt)
+        k = mx.concatenate([cache["k"], k_fresh], axis=1)
+        v = mx.concatenate([cache["v"], v_fresh], axis=1)
+        o = self._sdpa_full(q, k, v)
+        h_tgt = h_tgt + mx.tanh(g1) * self.to_out(o)
+        hm2, g2 = self._modulate(layer_norm_no_affine(h_tgt, self.eps), mod2, target_mask_tgt)
+        return h_tgt + mx.tanh(g2) * self.out(_silu_in(self.gate(hm2)) * self.proj(hm2))
+
+    def _sdpa_full(self, q, k, v):
+        B, S, _, _ = q.shape
+        o = mx.fast.scaled_dot_product_attention(
+            mx.transpose(q, (0, 2, 1, 3)), mx.transpose(k, (0, 2, 1, 3)), mx.transpose(v, (0, 2, 1, 3)),
+            scale=self.scale, mask=None,
+        )
+        return mx.transpose(o, (0, 2, 1, 3)).reshape(B, S, -1)
 
     def __call__(
         self,

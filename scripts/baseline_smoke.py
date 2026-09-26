@@ -23,6 +23,7 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", default="experiments/baseline")
     ap.add_argument("--name", default=None)
+    ap.add_argument("--image", default=None)
     args = ap.parse_args()
 
     import torch
@@ -43,10 +44,12 @@ def main() -> int:
 
     gen = torch.Generator("cpu").manual_seed(args.seed)
     t1 = time.time()
-    image = pipe(
-        prompt=args.prompt, width=1024, height=1024,
-        num_inference_steps=args.steps, generator=gen,
-    ).images[0]
+    call_kw = dict(prompt=args.prompt, width=1024, height=1024, num_inference_steps=args.steps, generator=gen)
+    if args.image:
+        from PIL import Image
+
+        call_kw["image"] = Image.open(args.image).convert("RGBA")
+    image = pipe(**call_kw).images[0]
     t_gen = round(time.time() - t1, 1)
 
     stem = args.name or f"smoke_s{args.steps}_seed{args.seed}"
@@ -64,6 +67,7 @@ def main() -> int:
     res = {
         "model": REPO, "revision": REVISION, "resolution": "1024x1024",
         "steps": args.steps, "seed": args.seed, "device": device,
+        "input_image": args.image,
         "load_seconds": t_load, "generation_seconds": t_gen,
         "seconds_per_step": round(t_gen / max(args.steps, 1), 2),
         "rss_gb": rss, "output": str(img_path), "sha_prefix": sha,

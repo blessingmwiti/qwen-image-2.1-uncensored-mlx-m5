@@ -1,10 +1,10 @@
 {
   "dit": "mlx-Q4",
   "resolution": "1024x1024",
-  "steps": 8,
+  "steps": 40,
   "seed": 42,
   "output": "experiments/hybrid/outputs/hybrid_q4.png",
-  "sha_prefix": "4aadc2ca997728b7",
-  "decode_seconds": 83.7,
+  "sha_prefix": "3cb4c5e0e51e5371",
+  "decode_seconds": 97.3,
   "status": "success"
 }
